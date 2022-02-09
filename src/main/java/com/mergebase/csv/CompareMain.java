@@ -5,9 +5,13 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -33,35 +37,41 @@ public class CompareMain {
             System.exit(1);
         }
 
-        String s1 = Bytes.fileToString(f1);
-        String s2 = Bytes.fileToString(f2);
-
-        boolean[] mergebaseIsSet1 = new boolean[1];
-        boolean[] mergebaseIsSet2 = new boolean[1];
-        Set<String> cves1 = extractCves(s1, mergebaseIsSet1);
-        Set<String> cves2 = extractCves(s2, mergebaseIsSet2);
-        if (mergebaseIsSet1[0] && mergebaseIsSet2[0]) {
+        boolean mergebaseIsSet1 = false;
+        boolean mergebaseIsSet2 = false;
+        String s1 = Bytes.fileToString(f1).trim();
+        String s2 = Bytes.fileToString(f2).trim();
+        String firstLine1 = intoLines(s1).get(0);
+        String firstLine2 = intoLines(s2).get(0);
+        if (firstLine1.startsWith("vuln,")) {
+            mergebaseIsSet1 = true;
+        }
+        if (firstLine2.startsWith("vuln,")) {
+            mergebaseIsSet2 = true;
+        }
+        if (mergebaseIsSet1 && mergebaseIsSet2) {
             System.out.println("Error - Cannot Compare - Both CSV files are MergeBase format! !?!? ");
             System.exit(1);
         }
-        if (!mergebaseIsSet1[0] && !mergebaseIsSet2[0]) {
+        if (!mergebaseIsSet1 && !mergebaseIsSet2) {
             System.out.println("Error - Cannot Compare - Neither CSV files are MergeBase format! !?!? ");
             System.exit(1);
         }
 
+        Set<String> cves1 = extractCves(s1);
+        Set<String> cves2 = extractCves(s2);
         Set<String> both = new TreeSet<>(cves1);
         both.retainAll(cves2);
         cves1.removeAll(both);
         cves2.removeAll(both);
-
 
         final CSVFormat.Builder builder = CSVFormat.EXCEL.builder();
         builder.setHeader("both", "mergebase_only", "dependency_check_only");
         final CSVFormat csvFormat = builder.build();
         final CSVPrinter printer = new CSVPrinter(System.out, csvFormat);
         Iterator<String> it1 = both.iterator();
-        Iterator<String> it2 = mergebaseIsSet1[0] ? cves1.iterator() : cves2.iterator();
-        Iterator<String> it3 = mergebaseIsSet1[0] ? cves2.iterator() : cves1.iterator();
+        Iterator<String> it2 = mergebaseIsSet1 ? cves1.iterator() : cves2.iterator();
+        Iterator<String> it3 = mergebaseIsSet1 ? cves2.iterator() : cves1.iterator();
         while (it1.hasNext() || it2.hasNext() || it3.hasNext()) {
             String vuln1 = it1.hasNext() ? it1.next() : "";
             String vuln2 = it2.hasNext() ? it2.next() : "";
@@ -71,7 +81,7 @@ public class CompareMain {
 
     }
 
-    private static Set<String> extractCves(String csv, boolean[] isMergeBase) throws IOException {
+    private static Set<String> extractCves(String csv) throws IOException {
         Set<String> set = new TreeSet<>();
 
         CSVParser parser = CSVParser.parse(csv, CSVFormat.DEFAULT.withFirstRecordAsHeader());
@@ -96,12 +106,33 @@ public class CompareMain {
             depCheckCve = depCheckCve != null ? depCheckCve.trim().toUpperCase(Locale.ROOT) : "";
             if (!"".equals(mergeBaseCve)) {
                 set.add(mergeBaseCve);
-                isMergeBase[0] = true;
             }
             if (!"".equals(depCheckCve)) {
                 set.add(depCheckCve);
             }
         }
         return set;
+    }
+
+
+    public static List<String> intoLines(final String... strings) {
+        List<String> list = new ArrayList<>();
+        if (strings != null) {
+            for (final String s : strings) {
+                if (s != null) {
+                    StringReader sr = new StringReader(s);
+                    BufferedReader br = new BufferedReader(sr);
+                    String line;
+                    try {
+                        while ((line = br.readLine()) != null) {
+                            list.add(line);
+                        }
+                    } catch (IOException ioe) {
+                        throw new RuntimeException("impossible - StringReader does not throw IOException - " + ioe, ioe);
+                    }
+                }
+            }
+        }
+        return list;
     }
 }

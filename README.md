@@ -10,7 +10,7 @@ Vulnerabilities are catagorized based on whether they appeared
 in "both" result sets, MergeBase-Only, or Dependency-Check-Only.
 
 ~~~~
-$ java -jar csv-compare-2022.02.02.jar dependency-check-report.csv  mergebase.csv 
+$ java -jar csv-compare-2022.02.09.jar dependency-check-report.csv  mergebase.csv 
 
 both,mergebase_only,dependency_check_only
 CVE-2016-5725,,CWE-502: DESERIALIZATION OF UNTRUSTED DATA
